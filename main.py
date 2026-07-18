@@ -34,3 +34,29 @@ def create_task(task: TaskCreate):
     tasks.append(new_task)
     
     return new_task
+# 1.  actualizaciones
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    done: Optional[bool] = None
+
+# 2. Endpoint DELETE
+@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int):
+    for index, task in enumerate(tasks):
+        if task["id"] == task_id:
+            tasks.pop(index)
+            return None # 204 no devuelve contenido
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+# 3. Endpoint para PUT (Actualizar)
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task_data: TaskUpdate):
+    for task in tasks:
+        if task["id"] == task_id:
+            # Actualizamos solo los campos que vienen en el JSON
+            if task_data.title is not None:
+                task["title"] = task_data.title
+            if task_data.done is not None:
+                task["done"] = task_data.done
+            return task
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
