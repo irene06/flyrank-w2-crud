@@ -24,10 +24,10 @@ def create_task(task: TaskCreate):
     if not task.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     
-    # 2. Crear el nuevo ID (el último id + 1)
+    # 2. Crea el nuevo ID (el último id + 1)
     new_id = tasks[-1]["id"] + 1 if tasks else 1
     
-    # 3. Crear el objeto
+    # 3. Crea el objeto
     new_task = {"id": new_id, "title": task.title, "done": False}
     
     # 4. Guardar
@@ -53,7 +53,7 @@ def delete_task(task_id: int):
 def update_task(task_id: int, task_data: TaskUpdate):
     for task in tasks:
         if task["id"] == task_id:
-            # Actualizamos solo los campos que vienen en el JSON
+            # campos que vienen del JSON
             if task_data.title is not None:
                 task["title"] = task_data.title
             if task_data.done is not None:
