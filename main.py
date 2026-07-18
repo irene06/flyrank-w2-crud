@@ -1,32 +1,36 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI()
 
-# Tu lista en memoria (Etapa 2)
+# Modelo para validar lo que el cliente envía
+class TaskCreate(BaseModel):
+    title: str
+
+# Tu lista en memoria
 tasks = [
     {"id": 1, "title": "Aprender FastAPI", "done": False},
     {"id": 2, "title": "Completar Stage 2", "done": False},
     {"id": 3, "title": "Subir a GitHub", "done": True},
 ]
 
-@app.get("/")
-def read_root():
-    return {"name": "Task API", "version": "1.0", "endpoints": ["/tasks"]}
+# ... / , /health, /tasks, /tasks/{id})
 
-@app.get("/health")
-def read_health():
-    return {"status": "ok"}
-
-# GET /tasks (lista todo)
-@app.get("/tasks")
-def get_tasks():
-    return tasks
-
-# GET /tasks/{id} (busca una tarea)
-@app.get("/tasks/{task_id}")
-def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-    # Si no se encuentra el ID, devuelve not found
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+# ETAPA 3: POST /tasks
+@app.post("/tasks", status_code=status.HTTP_201_CREATED)
+def create_task(task: TaskCreate):
+    # 1. 
+    if not task.title.strip():
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    
+    # 2. Crear el nuevo ID (el último id + 1)
+    new_id = tasks[-1]["id"] + 1 if tasks else 1
+    
+    # 3. Crear el objeto
+    new_task = {"id": new_id, "title": task.title, "done": False}
+    
+    # 4. Guardar
+    tasks.append(new_task)
+    
+    return new_task
