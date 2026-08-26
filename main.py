@@ -95,3 +95,152 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se pudo cerrar sesión: {str(e)}"
         )
+# ==========================================
+# 5. CONFIGURACIÓN DE POSTGRES Y CRUD DE TAREAS (A3)
+# ==========================================
+import psycopg
+from pydantic import BaseModel
+
+# Lee la URL de Postgres del .env
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgres://postgres:dev@localhost:5432/tasks"
+)
+
+
+def get_db_connection():
+  return psycopg.connect(DATABASE_URL)
+
+
+# Inicializar la tabla y datos de ejemplo si está vacía al arrancar
+def init_db():
+  try:
+    with get_db_connection() as conn:
+      with conn.cursor() as cur:
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tasks (
+                        id SERIAL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        done BOOLEAN NOT NULL DEFAULT FALSE
+                    );
+                """)
+        cur.execute("SELECT COUNT(*) FROM tasks;")
+        count = cur.fetchone()[0]
+        if count == 0:
+          cur.executemany(
+              "INSERT INTO tasks (title, done) VALUES (%s, %s);",
+              [
+                  ("Aprender Docker", False),
+                  ("Configurar PostgreSQL", True),
+                  ("Completar la tarea A3", False),
+              ],
+          )
+        conn.commit()
+  except Exception as e:
+    print(
+        "Aviso: No se pudo conectar a Postgres al iniciar (puede que el"
+        f" contenedor aún no esté activo): {e}"
+    )
+
+
+# inicializar la app
+init_db()
+
+
+# Modelo Pydantic para las tareas
+class TaskCreate(BaseModel):
+  title: str
+  done: bool = False
+
+
+class TaskUpdate(BaseModel):
+  title: str
+  done: bool
+
+
+# --- ENDPOINTS DE TAREAS (CRUD) ---
+
+
+@app.get("/tasks", tags=["Tasks"])
+def get_tasks():
+  """Lista todas las tareas desde PostgreSQL."""
+  with get_db_connection() as conn:
+    with conn.cursor() as cur:
+      cur.execute("SELECT id, title, done FROM tasks ORDER BY id;")
+      rows = cur.fetchall()
+      tasks = [{"id": row[0], "title": row[1], "done": row[2]} for row in rows]
+      return tasks
+
+
+@app.get("/tasks/{task_id}", tags=["Tasks"])
+def get_task(task_id: int):
+  """Obtiene una tarea por su ID usando consultas."""
+  with get_db_connection() as conn:
+    with conn.cursor() as cur:
+      cur.execute(
+          "SELECT id, title, done FROM tasks WHERE id = %s;", (task_id,)
+      )
+      row = cur.fetchone()
+      if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Task not found"},
+        )
+      return {"id": row[0], "title": row[1], "done": row[2]}
+
+
+@app.post("/tasks", status_code=status.HTTP_201_CREATED, tags=["Tasks"])
+def create_task(task: TaskCreate):
+  """Crea una nueva tarea en Postgres usando RETURNING."""
+  if not task.title.strip():
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"error": "Title cannot be empty"},
+    )
+  with get_db_connection() as conn:
+    with conn.cursor() as cur:
+      cur.execute(
+          "INSERT INTO tasks (title, done) VALUES (%s, %s) RETURNING id, title,"
+          " done;",
+          (task.title, task.done),
+      )
+      row = cur.fetchone()
+      conn.commit()
+      return {"id": row[0], "title": row[1], "done": row[2]}
+
+
+@app.put("/tasks/{task_id}", tags=["Tasks"])
+def update_task(task_id: int, task: TaskUpdate):
+  """Actualiza una tarea existente."""
+  with get_db_connection() as conn:
+    with conn.cursor() as cur:
+      cur.execute(
+          "UPDATE tasks SET title = %s, done = %s WHERE id = %s RETURNING id,"
+          " title, done;",
+          (task.title, task.done, task_id),
+      )
+      row = cur.fetchone()
+      conn.commit()
+      if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Task not found"},
+        )
+      return {"id": row[0], "title": row[1], "done": row[2]}
+
+
+@app.delete(
+    "/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Tasks"]
+)
+def delete_task(task_id: int):
+  """Elimina una tarea por su ID."""
+  with get_db_connection() as conn:
+    with conn.cursor() as cur:
+      cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
+      row = cur.fetchone()
+      conn.commit()
+      if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Task not found"},
+        )
+      return
