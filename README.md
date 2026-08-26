@@ -93,3 +93,11 @@ Ejecutar el servidor de desarrollo:
 Bash uvicorn main:app --reload
 http://127.0.0.1:8000/docs
 ![Captura de Swagger UI](auth-supabase.png)
+
+
+
+## Arquitectura y Persistencia
+- **Repositorio de PostgreSQL:** Se implementó el repositorio de Postgres que reemplaza al almacenamiento en memoria original. Gracias al diseño por capas, los servicios y las rutas (`routes`) de FastAPI se mantuvieron completamente intactos sin modificaciones.
+- **Prueba de Persistencia:** Se verificó la persistencia creando registros de prueba a través de la API (`/docs`), deteniendo y reiniciando el stack completo con `docker compose down` y `docker compose up`, comprobando que los datos siguen almacenados correctamente gracias al volumen configurado en Docker.
+![Captura de Swagger UI](swagger2.png)
+![Captura de Docker](dockercapturadepantalla.png)
