@@ -66,3 +66,30 @@ se ejecutaron consultas directas sobre la base de datos
 SELECT * FROM tasks WHERE done = 1;
 se muestra una captura de la tabla tasks abierta mediante DB Browser for SQLite.
 ![DB Browser Tasks Table](tasks.png)
+
+
+---
+
+## 📌 Documentación de Endpoints
+
+La API cuenta con los siguientes endpoints configurados y documentados en Swagger UI:
+
+| Método | Ruta | Descripción | Autenticación |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/auth/signup` | Registra un nuevo usuario en Supabase Auth | Pública 🔓 |
+| **POST** | `/auth/login` | Inicia sesión y retorna el Token de Acceso | Pública 🔓 |
+| **POST** | `/auth/logout` | Cierra la sesión activa del usuario | Protegida 🔒 (Bearer Token) |
+| **GET** | `/public/info` | Endpoint de prueba libre de autenticación | Pública 🔓 |
+| **GET** | `/protected/profile` | Retorna el perfil del usuario autenticado | Protegida 🔒 (Bearer Token) |
+
+---
+**Instalar dependencias** pip install fastapi uvicorn supabase python-dotenv pydantic
+**Configurar las variables de entorno:**
+Crea un archivo .env en la raíz del proyecto basándote en el archivo .env.example e incluye tus credenciales de Supabase:
+**SUPABASE_URL=tu_url_de_supabase**
+**SUPABASE_KEY=tu_key_anon_de_supabase**
+Ejecutar el servidor de desarrollo:
+
+Bash uvicorn main:app --reload
+http://127.0.0.1:8000/docs
+![Captura de Swagger UI](auth-supabase.png)
