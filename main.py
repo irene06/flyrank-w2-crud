@@ -1,71 +1,97 @@
 import os
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
-from supabase import Client, create_client
+from supabase import create_client, Client
 
-# 1. Cargar variables de entorno y crear cliente de Supabase
+# Cargar las variables de entorno del archivo .env
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# Inicializar el cliente de Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 2. Inicializar FastAPI
-app = FastAPI()
+app = FastAPI(
+    title="FlyRank Auth API",
+    description="API con autenticación de Supabase y rutas protegidas",
+    version="1.0.0"
+)
 
 
-# 3. Ruta de prueba para verificar que el servidor responde
-@app.get("/")
-def home():
-  return {"mensaje": "¡El servidor está vivo!"}
+# Esquema de seguridad para habilitar el candado en Swagger UI (/docs)
+security = HTTPBearer()
 
-
-# 4. Modelo de datos para autenticación
-class AuthCredentials(BaseModel):
-  email: str
-  password: str
-
-
-# 5. Endpoints de Registro y Login
-@app.post("/auth/signup", status_code=status.HTTP_201_CREATED)
-def sign_up(credentials: AuthCredentials):
-  if not credentials.email or not credentials.password:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail={"error": "Email and password are required"},
-    )
-  try:
-    response = supabase.auth.sign_up({
-        "email": credentials.email,
-        "password": credentials.password,
-    })
-    return {"message": "User registered successfully", "user": response.user}
-  except Exception as e:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST, detail={"error": str(e)}
-    )
-
-
-@app.post("/auth/login", status_code=status.HTTP_200_OK)
-def log_in(credentials: AuthCredentials):
-  if not credentials.email or not credentials.password:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail={"error": "Email and password are required"},
-    )
-  try:
-    response = supabase.auth.sign_in_with_password({
-        "email": credentials.email,
-        "password": credentials.password,
-    })
+# ==========================================
+# 1. RUTA PÚBLICA
+# ==========================================
+@app.get("/public/info", tags=["Public"])
+def public_info():
+    """
+    Endpoint público que no requiere autenticación.
+    """
     return {
-        "access_token": response.session.access_token,
-        "refresh_token": response.session.refresh_token,
+        "status": "success",
+        "message": "Bienvenido a la API pública de FlyRank. Esta información es libre."
     }
-  except Exception:
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"error": "Invalid login credentials"},
-    )
+
+
+# ==========================================
+# 2. DEPENDENCIA DE SEGURIDAD (Validador de Token)
+# ==========================================
+def verify_supabase_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Valida el token Bearer utilizando la sesión de Supabase Auth.
+    """
+    token = credentials.credentials
+    try:
+        user_response = supabase.auth.get_user(token)
+        if not user_response:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido o expirado"
+            )
+        return user_response
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Error de autenticación: {str(e)}"
+        )
+
+
+# ==========================================
+# 3. RUTA PROTEGIDA
+# ==========================================
+@app.get("/protected/profile", tags=["Protected"])
+def protected_profile(user = Depends(verify_supabase_token)):
+    """
+    Endpoint protegido que requiere un token de acceso válido de Supabase.
+    """
+    return {
+        "status": "success",
+        "message": "Acceso autorizado a la ruta protegida",
+        "user_data": user
+    }
+
+
+# ==========================================
+# 4. CIERRE DE SESIÓN (LOGOUT)
+# ==========================================
+@app.post("/auth/logout", tags=["Auth"])
+def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Cierra la sesión activa en Supabase utilizando el token Bearer.
+    """
+    token = credentials.credentials
+    try:
+        supabase.auth.sign_out(token)
+        return {
+            "status": "success",
+            "message": "Sesión cerrada exitosamente"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo cerrar sesión: {str(e)}"
+        )
