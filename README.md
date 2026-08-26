@@ -65,3 +65,4 @@ La API quedará corriendo en http://127.0.0.1:8000 y la documentación interacti
 se ejecutaron consultas directas sobre la base de datos
 SELECT * FROM tasks WHERE done = 1;
 se muestra una captura de la tabla tasks abierta mediante DB Browser for SQLite.
+![DB Browser Tasks Table](tasks.png)
