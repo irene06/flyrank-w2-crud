@@ -37,7 +37,7 @@
 # 
 
 ## API de gestión de tareas construida con **FastAPI** y migrada a una base de datos relacional persistente utilizando **SQLite**
-<img width="538" height="261" alt="image" src="https://github.com/user-attachments/assets/53f7b1cd-dd97-4193-a77e-3696bd2ab576" />
+
 Se eligió SQLite para este proyecto por las siguientes razones
 **Archivo único y cero configuración:** No requiere instalar ni configurar un servidor de base de datos externo (como PostgreSQL o MySQL); todo vive en un único archivo local (`tasks.db`)
 **Persistencia real:** A diferencia de las estructuras en memoria, los datos se almacenan en disco, lo que garantiza que la información sobreviva a los reinicios del servidor.
